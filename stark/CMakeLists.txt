@@ -10,10 +10,12 @@ if(NOT ${STARK_ENABLE_AVX})
 endif()
 
 # Eigen path (also used in projects below)
-set(EIGEN3_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/Eigen)
-if( NOT EIGEN3_INCLUDE_DIR )
-    message( FATAL_ERROR "Please point the environment variable EIGEN3_INCLUDE_DIR to the include directory of your Eigen3 installation.")
-endif()
+if(NOT DEFINED EIGEN3_INCLUDE_DIR)
+	set(EIGEN3_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/Eigen)
+	if( NOT EIGEN3_INCLUDE_DIR )
+		message( FATAL_ERROR "Please point the environment variable EIGEN3_INCLUDE_DIR to the include directory of your Eigen3 installation.")
+	endif()
+endif ()
 add_compile_options("-DEIGEN_MPL2_ONLY")
 
 # Parallel compilation in MSVC

@@ -81,93 +81,100 @@ stark::core::NewtonState stark::core::NewtonsMethod::solve(const double& dt, sym
 		const double max_da = this->_compute_acceleration_correction(this->du.cwiseAbs().maxCoeff(), dt);
 		console.print(fmt::format("da = {:.2e} | ", max_da), ConsoleVerbosity::NewtonIterations);
 
-		// Sufficient descend
-		const double du_dot_grad = this->du.dot(*assembled.grad);
-		if (du_dot_grad > 0.0) {
-			newton_state = NewtonState::LineSearchDoesntDescend;
-			break;
-		}
+		 // Sufficient descend
+  const double du_dot_grad = this->du.dot(*assembled.grad);
+  if (du_dot_grad > 0.0) {
+   newton_state = NewtonState::LineSearchDoesntDescend;
+   break;
+  }
 
-		// Max step in the search direction
-		double step_valid_configuration = this->_inplace_max_step_in_search_direction(this->du);
-		if (step_valid_configuration < 0.01) {
-			callbacks.run_on_intermidiate_state_invalid();
-			newton_state = NewtonState::InvalidIntermediateConfiguration;
-			break;
-		}
+  // Max step in the search direction
+  double step_valid_configuration = this->_inplace_max_step_in_search_direction(this->du);
+  if (step_valid_configuration < 0.01) {
+   callbacks.run_on_intermidiate_state_invalid();
+   newton_state = NewtonState::InvalidIntermediateConfiguration;
+   break;
+  }
 
-		// Residual after a valid step
-		assembled = this->_evaluate_E_grad();
-		this->residual = this->_compute_residual(*assembled.grad, dt);
-		residual_max = this->residual.maxCoeff();
-		console.print(fmt::format("r1 = {:.2e}", residual_max), ConsoleVerbosity::NewtonIterations);
+  // Residual after a valid step
+  assembled = this->_evaluate_E_grad();
+  this->residual = this->_compute_residual(*assembled.grad, dt);
+  residual_max = this->residual.maxCoeff();
+  console.print(fmt::format("r1 = {:.2e}", residual_max), ConsoleVerbosity::NewtonIterations);
 
-		//// Converged?
-		if (residual_max < this->settings->newton.residual.tolerance) {
-			newton_state = NewtonState::Successful;
-			break;
-		}
+  const double du_norm = this->du.array().abs().maxCoeff() * dt;
+  console.print(fmt::format("du_norm = {:.2e}", du_norm), ConsoleVerbosity::NewtonIterations);
+  if (du_norm < 5e-4) {
+   newton_state = NewtonState::Successful;
+   break;
 
-		// Line search: Backtracking (Nocedal)
-		double step_that_worked = this->_inplace_backtracking_line_search(this->du, E0, *assembled.E, step_valid_configuration, du_dot_grad);
-		if (step_that_worked == 0.0) {
-			newton_state = NewtonState::TooManyLineSearchIterations;
-			break;
-		}
-	} // Newton iterations
+  }
+  // //// Converged?
+  // if (residual_max < this->settings->newton.residual.tolerance) {
+  //  newton_state = NewtonState::Successful;
+  //  break;
+  // }
 
-	// Is converged state valid?
-	if (!callbacks.run_is_converged_state_valid()) {
-		newton_state = NewtonState::InvalidConvergedState;
-	}
+  // Line search: Backtracking (Nocedal)
+  double step_that_worked = this->_inplace_backtracking_line_search(this->du, E0, *assembled.E, step_valid_configuration, du_dot_grad);
+  if (step_that_worked == 0.0) {
+   newton_state = NewtonState::TooManyLineSearchIterations;
+   break;
+  }
+ } // Newton iterations
 
-	// Print
-	console.print("\n\t\t", ConsoleVerbosity::NewtonIterations);
-	console.print(fmt::format("#newton: {:d} ", this->step_newton_it), ConsoleVerbosity::TimeSteps);
-	console.print(" | #CG/newton: " + std::to_string((int)(this->cg_iterations_in_step / this->step_newton_it)), ConsoleVerbosity::TimeSteps);
-	console.print(" | #line_search/newton: " + std::to_string((int)(this->step_line_search_count / this->step_newton_it)), ConsoleVerbosity::TimeSteps);
-	if (newton_state == NewtonState::Successful) {
-		console.print(" | converged", ConsoleVerbosity::TimeSteps);
-	}
-	else {
-		console.print(" | not converged", ConsoleVerbosity::TimeSteps);
-	}
+ // Is converged state valid?
+ if (!callbacks.run_is_converged_state_valid()) {
+  newton_state = NewtonState::InvalidConvergedState;
+ }
 
-	// Print error message
-	switch (newton_state)
-	{
-		case NewtonState::TooManyNewtonIterations:
-			console.print(fmt::format("\n\t\t -> Max Newton iterations reached ({:d}) with residual_max {:.2e}. ", settings.newton.max_newton_iterations, residual_max), ConsoleVerbosity::TimeSteps);
-			break;
-		case NewtonState::TooManyLineSearchIterations:
-			console.print(fmt::format("\n\t\t -> Max line search iterations reached ({:d}). ", settings.newton.max_line_search_iterations), ConsoleVerbosity::TimeSteps);
-			break;
-		case NewtonState::LinearSystemFailure:
-			console.print("\n\t\t -> Linear system couldn't find a solution. ", ConsoleVerbosity::TimeSteps);
-			break;
-		case NewtonState::InvalidIntermediateConfiguration:
-			console.print("\n\t\t -> Invalid intermediate configuration couldn't be avoided. ", ConsoleVerbosity::TimeSteps);
-			break;
-		case NewtonState::LineSearchDoesntDescend:
-			console.print("\n\t\t -> Line search doesn't descend. ", ConsoleVerbosity::TimeSteps);
-			break;
-		case NewtonState::InvalidConvergedState:
-			console.print("\n\t\t -> Converged state is not valid. ", ConsoleVerbosity::TimeSteps);
-			break;
-		default:
-			break;
-	}
-	if (newton_state != NewtonState::Successful) {
-		this->console->print_error_msg_and_clear(ConsoleVerbosity::TimeSteps);
-	}
+ // Print
+ console.print("\n\t\t", ConsoleVerbosity::NewtonIterations);
+ console.print(fmt::format("#newton: {:d} ", this->step_newton_it), ConsoleVerbosity::TimeSteps);
+ console.print(" | #CG/newton: " + std::to_string((int)(this->cg_iterations_in_step / this->step_newton_it)), ConsoleVerbosity::TimeSteps);
+ console.print(" | #line_search/newton: " + std::to_string((int)(this->step_line_search_count / this->step_newton_it)), ConsoleVerbosity::TimeSteps);
+ if (newton_state == NewtonState::Successful) {
+  console.print(" | converged", ConsoleVerbosity::TimeSteps);
+ }
+ else {
+  console.print(" | not converged", ConsoleVerbosity::TimeSteps);
+ }
 
-	// Log
-	logger.add_to_counter("newton_iterations", this->step_newton_it);
-	logger.add_to_counter("CG_iterations", this->cg_iterations_in_step);
-	logger.add_to_counter("line_search_iterations", this->step_line_search_count);
+ // Print error message
+ switch (newton_state)
+ {
+  case NewtonState::TooManyNewtonIterations:
+   console.print(fmt::format("\n\t\t -> Max Newton iterations reached ({:d}) with residual_max {:.2e}. ", settings.newton.max_newton_iterations, residual_max), ConsoleVerbosity::TimeSteps);
+   break;
+  case NewtonState::TooManyLineSearchIterations:
+   console.print(fmt::format("\n\t\t -> Max line search iterations reached ({:d}). ", settings.newton.max_line_search_iterations), ConsoleVerbosity::TimeSteps);
+   break;
+  case NewtonState::LinearSystemFailure:
+   console.print("\n\t\t -> Linear system couldn't find a solution. ", ConsoleVerbosity::TimeSteps);
+   break;
+  case NewtonState::InvalidIntermediateConfiguration:
+   console.print("\n\t\t -> Invalid intermediate configuration couldn't be avoided. ", ConsoleVerbosity::TimeSteps);
+   break;
+  case NewtonState::LineSearchDoesntDescend:
+   console.print("\n\t\t -> Line search doesn't descend. ", ConsoleVerbosity::TimeSteps);
+   break;
+  case NewtonState::InvalidConvergedState:
+   console.print("\n\t\t -> Converged state is not valid. ", ConsoleVerbosity::TimeSteps);
+   break;
+  default:
+   break;
+ }
+ if (newton_state != NewtonState::Successful) {
+  this->console->print_error_msg_and_clear(ConsoleVerbosity::TimeSteps);
+ }
 
-	// Return
-	return newton_state;
+ // Log
+ logger.add_to_counter("newton_iterations", this->step_newton_it);
+ logger.add_to_counter("CG_iterations", this->cg_iterations_in_step);
+ logger.add_to_counter("line_search_iterations", this->step_line_search_count);
+
+ // Return
+ return newton_state;
 }
 
 void stark::core::NewtonsMethod::_run_before_evaluation()
