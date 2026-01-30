@@ -39,7 +39,8 @@ namespace symx
 		// Save a little time and only project the negative or zero values
 		for (int i = 0; i < A.rows(); i++) {
 			if (D.diagonal()[i] < eps) {
-				D.diagonal()[i] = eps;
+				// D.diagonal()[i] = eps;
+				D.diagonal()[i] = std::abs(D.diagonal()[i]);
 			}
 			else {
 				break;

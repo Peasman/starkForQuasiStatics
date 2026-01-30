@@ -226,3 +226,11 @@ The following models can be found in symbolic form in `stark/stark/src/models/`:
 List of collaborators to the codebase:
   - [José Antonio Fernández-Fernández](https://github.com/JoseAntFer)
   - [Fabian Löschner](https://github.com/w1th0utnam3)
+
+
+
+### Changes
+
+This repository changes some functions to be more suitable to quasistatics. 
+- Project to PD can be used with absolute eigenvalue clamping as suggested in https://www.cs.columbia.edu/cg/abs-psd/paper.pdf
+- Newtonsolver reaches convergence dependent on maxnorm of gradient instead of residual changes
