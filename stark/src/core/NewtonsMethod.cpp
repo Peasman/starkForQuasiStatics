@@ -104,7 +104,7 @@ stark::core::NewtonState stark::core::NewtonsMethod::solve(const double& dt, sym
 
   const double du_norm = this->du.array().abs().maxCoeff() * dt;
   console.print(fmt::format("du_norm = {:.2e}", du_norm), ConsoleVerbosity::NewtonIterations);
-  if (du_norm < 1e-3) {
+  if (du_norm < settings.newton.du_norm_threshhold) {
    newton_state = NewtonState::Successful;
    break;
 
