@@ -57,6 +57,8 @@ namespace stark::core
 			double cg_max_iterations_multiplier = 1.0;
 			double epsilon_residual = 1e-12;  // Does not apply the correction if the residual is below this value. Avoids numerical instability in CG.
 		    double du_norm_threshhold = 1e-3;
+			bool use_du_norm_threshhold = true;
+			bool use_residual_threshhold = false;
 		};
 		struct Execution
 		{

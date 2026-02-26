@@ -103,17 +103,26 @@ stark::core::NewtonState stark::core::NewtonsMethod::solve(const double& dt, sym
   console.print(fmt::format("r1 = {:.2e}", residual_max), ConsoleVerbosity::NewtonIterations);
 
   const double du_norm = this->du.array().abs().maxCoeff() * dt;
-  console.print(fmt::format("du_norm = {:.2e}", du_norm), ConsoleVerbosity::NewtonIterations);
-  if (du_norm < settings.newton.du_norm_threshhold) {
-   newton_state = NewtonState::Successful;
-   break;
+  console.print(fmt::format(" du_norm = {:.2e}", du_norm), ConsoleVerbosity::NewtonIterations);
+	if (settings.newton.use_du_norm_threshhold and settings.newton.use_residual_threshhold)
+	{
+		if (du_norm < settings.newton.du_norm_threshhold and residual_max < this->settings->newton.residual.tolerance)
+		{
+			newton_state = NewtonState::Successful;
+			break;
+		}
+	} else
+	{
+		if (settings.newton.use_du_norm_threshhold and du_norm < settings.newton.du_norm_threshhold) {
+			newton_state = NewtonState::Successful;
+			break;
+		}
+		if (settings.newton.use_residual_threshhold and residual_max < this->settings->newton.residual.tolerance) {
+			newton_state = NewtonState::Successful;
+			break;
+		}
+	}
 
-  }
-  // //// Converged?
-  // if (residual_max < this->settings->newton.residual.tolerance) {
-  //  newton_state = NewtonState::Successful;
-  //  break;
-  // }
 
   // Line search: Backtracking (Nocedal)
   double step_that_worked = this->_inplace_backtracking_line_search(this->du, E0, *assembled.E, step_valid_configuration, du_dot_grad);
