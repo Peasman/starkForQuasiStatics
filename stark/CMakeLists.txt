@@ -10,12 +10,13 @@ if(NOT ${STARK_ENABLE_AVX})
 endif()
 
 # Eigen path (also used in projects below)
-if(NOT DEFINED EIGEN3_INCLUDE_DIR)
-	set(EIGEN3_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/Eigen)
-	if( NOT EIGEN3_INCLUDE_DIR )
-		message( FATAL_ERROR "Please point the environment variable EIGEN3_INCLUDE_DIR to the include directory of your Eigen3 installation.")
-	endif()
-endif ()
+if(NOT TARGET Eigen3::Eigen)
+	message(STATUS "Using local Eigen3 fallback")
+	add_library(Eigen3::Eigen INTERFACE IMPORTED)
+	set_target_properties(Eigen3::Eigen PROPERTIES
+			INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/extern/Eigen"
+	)
+endif()
 add_compile_options("-DEIGEN_MPL2_ONLY")
 
 # Parallel compilation in MSVC
@@ -175,14 +176,14 @@ add_library(stark ${ALL_FILES})
 # Include/link dependencies
 ## OpenMP
 find_package(OpenMP REQUIRED)
-target_link_libraries(stark OpenMP::OpenMP_CXX)
+target_link_libraries(stark PUBLIC OpenMP::OpenMP_CXX)
 
 ## SymX
-target_link_libraries(stark symx)
+target_link_libraries(stark PUBLIC symx)
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/symx/include)
 
 ## TriangleMeshCollisionDetection
-target_link_libraries(stark TriangleMeshCollisionDetection)
+target_link_libraries(stark PUBLIC  TriangleMeshCollisionDetection)
 target_include_directories(stark PUBLIC extern/TriangleMeshCollisionDetection/include)
 
 ## Conjugate Gradient
@@ -195,11 +196,12 @@ target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/vtkio
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/TriangleMeshDistance/include)
 
 ## fmt
-target_link_libraries(stark fmt::fmt)
+target_link_libraries(stark PUBLIC fmt::fmt)
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/fmt/include)
 
 ## Eigen
-target_include_directories(stark PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_link_libraries(stark PUBLIC Eigen3::Eigen)
+target_link_libraries(stark PUBLIC MKL::MKL)
 
 ## par_shapes
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/par_shapes/include)

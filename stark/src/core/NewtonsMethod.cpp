@@ -4,7 +4,7 @@
 #include <fmt/format.h>
 #include <BlockedSparseMatrix/ConjugateGradientMethod.h>
 
-
+#include <Eigen/PardisoSupport>
 stark::core::NewtonState stark::core::NewtonsMethod::solve(const double& dt, symx::GlobalEnergy& global_energy, Callbacks& callbacks, const Settings& settings, Console& console, Logger& logger)
 {
 	// Set pointers for easy access accross methods
@@ -100,7 +100,8 @@ stark::core::NewtonState stark::core::NewtonsMethod::solve(const double& dt, sym
   assembled = this->_evaluate_E_grad();
   this->residual = this->_compute_residual(*assembled.grad, dt);
   residual_max = this->residual.maxCoeff();
-  console.print(fmt::format("r1 = {:.2e}", residual_max), ConsoleVerbosity::NewtonIterations);
+  console.print(fmt::format(" r1 = {:.2e}", residual_max), ConsoleVerbosity::NewtonIterations);
+  console.print(fmt::format(" energy = {:.2e}", *_evaluate_E().E), ConsoleVerbosity::NewtonIterations);
 
   const double du_norm = this->du.array().abs().maxCoeff() * dt;
   console.print(fmt::format(" du_norm = {:.2e}", du_norm), ConsoleVerbosity::NewtonIterations);
@@ -285,6 +286,7 @@ double stark::core::NewtonsMethod::_forcing_sequence(const Eigen::VectorXd& rhs)
 	const double cg_tol = std::min(0.1 /* TODO: find a better cap.*/, grad_norm * std::min(0.5, std::sqrt(grad_norm)));
 	return cg_tol;
 }
+typedef Eigen::SparseMatrix<double,EIGEN_DEFAULT_MATRIX_STORAGE_ORDER_OPTION,long long> longSparseMatrix;
 
 bool stark::core::NewtonsMethod::_solve_linear_system(Eigen::VectorXd& du, const symx::Assembled& assembled, double dt)
 {
@@ -292,7 +294,38 @@ bool stark::core::NewtonsMethod::_solve_linear_system(Eigen::VectorXd& du, const
 	Eigen::VectorXd rhs = -1.0 * (*assembled.grad);
 
 	// Solve
-	if (this->settings->newton.linear_system_solver == LinearSystemSolver::DirectLU) {
+	switch (this->settings->newton.linear_system_solver)
+	{
+	case LinearSystemSolver::CG:
+		{
+			this->logger->start_timing("CG");
+			const int n_threads = this->settings->execution.n_threads;
+			const double cg_tol = this->_forcing_sequence(rhs);
+			const int max_iterations = std::max(1000, (int)(this->settings->newton.cg_max_iterations_multiplier * rhs.size())); // Very small sims will need to exceed ndofs iterations
+			bsm::BlockedSparseMatrix<3, 3, double>& lhs = *assembled.hess;
+			this->du.resize(rhs.size());
+			this->du.setZero();
+
+			lhs.set_preconditioner(bsm::Preconditioner::BlockDiagonal);
+			lhs.prepare_preconditioning(n_threads);
+			cg::Info info = cg::solve<double>(this->du.data(), rhs.data(), (int)rhs.size(), cg_tol, max_iterations,
+				[&](double* b, const double* x, const int size) { lhs.spmxv_from_ptr(b, x, n_threads);  },
+				[&](double* z, const double* r, const int size) { lhs.apply_preconditioning(z, r, n_threads); }
+			, n_threads);
+			this->cg_iterations_in_step += info.n_iterations;
+			this->logger->stop_timing_add("CG");
+
+			if (!info.converged) {
+				this->console->add_error_msg(fmt::format("CG didn't converge to tolerance {:.2e} in max iterations {:d}.", cg_tol, max_iterations));
+				return false;
+			}
+			else {
+				return true;
+			}
+			break;
+		}
+	case LinearSystemSolver::DirectLU:
+		{
 		this->logger->start_timing("directLU");
 		std::vector<Eigen::Triplet<double>> triplets;
 		assembled.hess->to_triplets(triplets);
@@ -315,34 +348,62 @@ bool stark::core::NewtonsMethod::_solve_linear_system(Eigen::VectorXd& du, const
 		else {
 			return true;
 		}
+		break;
 	}
-	else if (this->settings->newton.linear_system_solver == LinearSystemSolver::CG) {
-		this->logger->start_timing("CG");
-		const int n_threads = this->settings->execution.n_threads;
-		const double cg_tol = this->_forcing_sequence(rhs);
-		const int max_iterations = std::max(1000, (int)(this->settings->newton.cg_max_iterations_multiplier * rhs.size())); // Very small sims will need to exceed ndofs iterations
-		bsm::BlockedSparseMatrix<3, 3, double>& lhs = *assembled.hess;
-		this->du.resize(rhs.size());
-		this->du.setZero();
-		
-		lhs.set_preconditioner(bsm::Preconditioner::BlockDiagonal);
-		lhs.prepare_preconditioning(n_threads);
-		cg::Info info = cg::solve<double>(this->du.data(), rhs.data(), (int)rhs.size(), cg_tol, max_iterations,
-			[&](double* b, const double* x, const int size) { lhs.spmxv_from_ptr(b, x, n_threads);  },
-			[&](double* z, const double* r, const int size) { lhs.apply_preconditioning(z, r, n_threads); }
-		, n_threads);
-		this->cg_iterations_in_step += info.n_iterations;
-		this->logger->stop_timing_add("CG");
+	case LinearSystemSolver::MKL_LU:
+		{
+			this->logger->start_timing("MKL_LU");
+			std::vector<Eigen::Triplet<double>> triplets;
+			assembled.hess->to_triplets(triplets);
 
-		if (!info.converged) {
-			this->console->add_error_msg(fmt::format("CG didn't converge to tolerance {:.2e} in max iterations {:d}.", cg_tol, max_iterations));
-			return false;
+			longSparseMatrix s;
+			s.resize(rhs.size(), rhs.size());
+			s.setFromTriplets(triplets.begin(), triplets.end());
+			s.makeCompressed();
+
+			Eigen::PardisoLU<longSparseMatrix> lu(s);
+			// Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> lu;
+			lu.analyzePattern(s);
+			lu.factorize(s);
+			du = lu.solve(rhs);
+			this->logger->stop_timing_add("MKL_LU");
+
+			if (lu.info() != Eigen::ComputationInfo::Success) {
+				this->console->add_error_msg("DirectLU couldn't find a solution.");
+				return false;
+			}
+			else {
+				return true;
+			}
+			break;
 		}
-		else {
-			return true;
+	case LinearSystemSolver::MKL_LDLT:
+		{
+			this->logger->start_timing("MKL_LDLT");
+			std::vector<Eigen::Triplet<double>> triplets;
+			assembled.hess->to_triplets(triplets);
+
+			longSparseMatrix s;
+			s.resize(rhs.size(), rhs.size());
+			s.setFromTriplets(triplets.begin(), triplets.end());
+			s.makeCompressed();
+
+			Eigen::PardisoLDLT<longSparseMatrix> lu(s);
+			lu.analyzePattern(s);
+			lu.factorize(s);
+			du = lu.solve(rhs);
+			this->logger->stop_timing_add("MKL_LDLT");
+
+			if (lu.info() != Eigen::ComputationInfo::Success) {
+				this->console->add_error_msg("DirectLU couldn't find a solution.");
+				return false;
+			}
+			else {
+				return true;
+			}
+			break;
 		}
-	}
-	else {
+	default:
 		std::cout << "Stark error: NewtonsMethod::_solve_linear_system() found an unknown linear system solver." << std::endl;
 		exit(-1);
 	}
