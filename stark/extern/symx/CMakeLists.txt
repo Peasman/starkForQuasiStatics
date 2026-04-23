@@ -74,16 +74,17 @@ endif()
 ## OpenMP
 find_package(OpenMP)
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(symx OpenMP::OpenMP_CXX)
+    target_link_libraries(symx PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	## libdl (shared object loading)
-	target_link_libraries(symx dl)
+	target_link_libraries(symx PUBLIC dl)
 endif()
 
 ## Eigen
-target_include_directories(symx PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_include_directories(symx SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_link_libraries(symx PUBLIC Eigen3::Eigen)
 
 ## BlockedSparseMatrix
 target_include_directories(symx PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/BlockedSparseMatrix/include)
