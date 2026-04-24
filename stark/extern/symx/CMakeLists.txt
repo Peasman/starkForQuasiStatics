@@ -83,7 +83,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 ## Eigen
-target_include_directories(symx SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_include_directories(symx SYSTEM PUBLIC ${Eigen3_INCLUDE_DIR})
+message(STATUS "Symx Eigen3IncludeDir: ${Eigen3_INCLUDE_DIR}")
 target_link_libraries(symx PUBLIC Eigen3::Eigen)
 
 ## BlockedSparseMatrix
