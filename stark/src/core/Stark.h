@@ -17,7 +17,8 @@ namespace stark::core
 	public:
 		/* Fields */
 		const Settings settings;
-		symx::GlobalEnergy global_energy;
+		symx::GlobalPotential global_energy;
+		std::shared_ptr<symx::SecondOrderCompiledGlobal> compiled_global;
 		Callbacks callbacks;
 		Console console;
 		Logger logger;

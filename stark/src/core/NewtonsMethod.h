@@ -44,26 +44,34 @@ namespace stark::core
 		Logger line_search_debug_logger;
 
 		// Pointers for easy access within the methods (TODO: Refactor)
-		symx::GlobalEnergy* global_energy = nullptr;
+		symx::GlobalPotential* global_energy = nullptr;
+		symx::SecondOrderCompiledGlobal* compiled_global = nullptr;
 		Callbacks* callbacks = nullptr;
 		const Settings* settings = nullptr;
 		Console* console = nullptr;
 		Logger* logger = nullptr;
 
 		/* Methods */
-		NewtonState solve(const double& dt, symx::GlobalEnergy& global_energy, Callbacks& callbacks, const Settings& settings, Console& console, Logger& logger);
+		NewtonState solve(const double& dt, symx::GlobalPotential& global_energy, symx::SecondOrderCompiledGlobal& compiled_global, Callbacks& callbacks, const Settings& settings, Console& console, Logger& logger);
 
 	private:
+		// Assembled result from evaluation
+		struct EvalResult {
+			double E = 0.0;
+			Eigen::VectorXd grad;
+			symx::ElementHessians::spBSM hess;  // null for E-only and E+grad evaluations
+		};
+
 		void _run_before_evaluation();
 		void _run_after_evaluation();
-		symx::Assembled _evaluate_E_grad_hess();
-		symx::Assembled _evaluate_E_grad();
-		symx::Assembled _evaluate_E();
+		EvalResult _evaluate_E_grad_hess();
+		EvalResult _evaluate_E_grad();
+		EvalResult _evaluate_E();
 		Eigen::VectorXd _compute_residual(const Eigen::VectorXd& grad, double dt);
 		double _compute_acceleration_correction(double du, double dt);
 		double _forcing_sequence(const Eigen::VectorXd& rhs);
 
-		bool _solve_linear_system(Eigen::VectorXd& du, const symx::Assembled& assembled, double dt);
+		bool _solve_linear_system(Eigen::VectorXd& du, const EvalResult& result, double dt);
 		double _inplace_max_step_in_search_direction(const Eigen::VectorXd& du);
 		double _inplace_backtracking_line_search(const Eigen::VectorXd& du, double E0, double E, double step_valid_configuration, double du_dot_grad);
 	};

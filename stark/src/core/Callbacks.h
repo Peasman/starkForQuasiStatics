@@ -66,7 +66,7 @@ namespace stark::core
 		void add_on_intermidiate_state_invalid(std::function<void()> f) { this->on_intermidiate_state_invalid.push_back(f); };
 		void add_is_converged_state_valid(std::function<bool()> f) { this->is_converged_state_valid.push_back(f); };
 
-		void add_inv_mass_application(const symx::DoF& dof, std::function<void(double*, double*)> f) { this->inv_mass_application[dof.idx] = f; };
+		void add_inv_mass_application(const int dof_set, std::function<void(double*, double*)> f) { this->inv_mass_application[dof_set] = f; };
 
 		// Get
 		auto& get_inv_mass_application() { return this->inv_mass_application; };

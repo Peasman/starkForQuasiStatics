@@ -14,11 +14,6 @@ namespace stark
 	enum class LinearSystemSolver { CG, DirectLU, MKL_LU, MKL_LDLT };
 	struct Residual { ResidualType type; double tolerance; };
 
-	// Wrapper to set SymX compiler
-	inline void set_compiler_command(const std::string& str)
-	{
-		symx::compiler_command = str;
-	}
 }
 
 namespace stark::core

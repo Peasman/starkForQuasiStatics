@@ -54,8 +54,7 @@ Stark::Stark(const Settings& settings)
 	// Print settings
 	this->console.print(this->settings.as_string(), ConsoleVerbosity::TimeSteps);
 
-	// SymX
-	this->global_energy.set_cse_mode(symx::CSE::Safe);
+	// SymX: nothing to pre-configure on GlobalPotential at construction time.
 }
 bool Stark::run(double duration, std::function<void()> callback)
 {
@@ -126,7 +125,7 @@ bool Stark::run_one_step()
 
 	// Use Newton's Method to solve the time step update
 	const double t0 = omp_get_wtime();
-	NewtonState newton = this->newton.solve(this->dt, this->global_energy, this->callbacks, this->settings, this->console, this->logger);
+	NewtonState newton = this->newton.solve(this->dt, this->global_energy, *this->compiled_global, this->callbacks, this->settings, this->console, this->logger);
 
 	// Time step ended with success
 	if (newton == NewtonState::Successful) {
@@ -235,29 +234,29 @@ void Stark::_initialize()
 		exit(-1);
 	}
 
-	// SymX
-	//// Compile
-	symx::GlobalEnergy::CompilationOptions options;
-	options.n_threads = this->settings.execution.n_threads;
-	options.force_compilation = this->settings.debug.symx_force_compilation;
-	options.force_load = this->settings.debug.symx_force_load;
-	options.suppress_compiler_output = this->settings.debug.symx_suppress_compiler_output;
-	options.msg_callback = [&](const std::string& msg) { this->console.print(msg, ConsoleVerbosity::Frames); };
-	this->global_energy.compile(this->settings.output.codegen_directory, options);
-	if (this->settings.debug.symx_force_load) {
-		this->console.print("\t-|-|-|-|- WARNING: Forced load enabled. Loaded expressions might be outdated. -|-|-|-|-", ConsoleVerbosity::Frames);
-	}
+	// SymX: compile all registered potentials via SecondOrderCompiledGlobal
+	{
+		auto context = symx::Context::create();
+		context->n_threads = this->settings.execution.n_threads;
+		context->compilation_directory = this->settings.output.codegen_directory;
 
-	//// Parameters
-	if (this->settings.newton.project_to_PD) {
-		this->global_energy.set_project_to_PD(true);
+		auto sink = std::make_shared<symx::OutputSink>();
+		if (this->settings.debug.symx_suppress_compiler_output) {
+			sink->set_enabled(false);
+		}
+		context->output = sink;
+
+		this->compiled_global = std::make_shared<symx::SecondOrderCompiledGlobal>(
+			std::shared_ptr<symx::GlobalPotential>(&this->global_energy, [](symx::GlobalPotential*){}),
+			context
+		);
 	}
-	this->global_energy.set_check_for_NaNs(this->settings.debug.symx_check_for_NaNs);
 
 	//// Print ndofs
 	this->console.print("\nDegrees of freedom:", ConsoleVerbosity::Frames);
-	for (int i = 0; i < (int)this->global_energy.dof_labels.size(); i++) {
-		this->console.print(fmt::format("\n\t {} {:d}", this->global_energy.dof_labels[i], this->global_energy.dof_ndofs[i]()), ConsoleVerbosity::Frames);
+	const int n_dof_sets = this->global_energy.get_n_dof_sets();
+	for (int i = 0; i < n_dof_sets; i++) {
+		this->console.print(fmt::format("\n\t {} {:d}", this->global_energy.get_dof_label(i), this->global_energy.get_n_dofs(i)), ConsoleVerbosity::Frames);
 	}
 	this->console.print("\n\n", ConsoleVerbosity::Frames);
 
