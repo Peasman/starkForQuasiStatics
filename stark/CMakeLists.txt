@@ -1,11 +1,30 @@
 cmake_minimum_required(VERSION 3.9)
 
-# Option to disable AVX for ARM-based devices
-set(STARK_ENABLE_AVX ON CACHE BOOL "Flag to enable AVX for Stark and its dependencies")
+# Apple Clang does not bundle OpenMP; hint CMake to use Homebrew's libomp.
+# Must be done before any add_subdirectory that also calls find_package(OpenMP).
+if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "AppleClang|Clang")
+	execute_process(COMMAND brew --prefix libomp OUTPUT_VARIABLE LIBOMP_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+	if(LIBOMP_PREFIX)
+		set(OpenMP_C_FLAGS   "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include" CACHE STRING "" FORCE)
+		set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include" CACHE STRING "" FORCE)
+		set(OpenMP_C_LIB_NAMES   "omp" CACHE STRING "" FORCE)
+		set(OpenMP_CXX_LIB_NAMES "omp" CACHE STRING "" FORCE)
+		set(OpenMP_omp_LIBRARY "${LIBOMP_PREFIX}/lib/libomp.dylib" CACHE FILEPATH "" FORCE)
+	endif()
+endif()
 
-# If AVX is disabled for stark, disable it for all dependencies that use AVX
+# Option to disable AVX for ARM-based devices
+# Defaults to ON on x86/x86_64, OFF on ARM/AArch64
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|X86_64|amd64|AMD64|i[3-6]86)$")
+	set(_STARK_AVX_DEFAULT ON)
+else()
+	set(_STARK_AVX_DEFAULT OFF)
+endif()
+set(STARK_ENABLE_AVX ${_STARK_AVX_DEFAULT} CACHE BOOL "Flag to enable AVX for Stark and its dependencies")
+
+# Propagate to all dependencies that have their own AVX flags
 if(NOT ${STARK_ENABLE_AVX})
-	set(SYMX_ENABLE_AVX OFF CACHE BOOL "Flag to enable AVX for symx" FORCE)
+	set(SYMX_ENABLE_AVX2 OFF CACHE STRING "Flag to enable AVX2 for symx" FORCE)
 	set(TMCD_ENABLE_AVX OFF CACHE BOOL "Flag to enable AVX for tmcd" FORCE)
 endif()
 
@@ -35,9 +54,12 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 # Dependencies
+## New symx lives in extern/symx (the library subdirectory of the repo).
+## It manages its own fmt and Eigen dependencies.
+set(SYMX_FMT_PUBLIC ON CACHE BOOL "" FORCE)    # expose fmt headers to stark
+set(SYMX_EIGEN_PUBLIC ON CACHE BOOL "" FORCE)  # expose Eigen headers to stark
 add_subdirectory(extern/symx)
 add_subdirectory(extern/TriangleMeshCollisionDetection)
-add_subdirectory(extern/fmt)
 
 # Source files
 set(CORE_FILES
@@ -178,7 +200,7 @@ add_library(stark ${ALL_FILES})
 find_package(OpenMP REQUIRED)
 target_link_libraries(stark PUBLIC OpenMP::OpenMP_CXX)
 
-## SymX
+## SymX (brings fmt, Eigen, BlockedSparseMatrix as transitive PUBLIC deps)
 target_link_libraries(stark PUBLIC symx)
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/symx/include)
 
@@ -186,22 +208,21 @@ target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/symx/
 target_link_libraries(stark PUBLIC  TriangleMeshCollisionDetection)
 target_include_directories(stark PUBLIC extern/TriangleMeshCollisionDetection/include)
 
-## Conjugate Gradient
-target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/symx/extern)
-
 ## vtkio
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/vtkio/include)
 
 ## TriangleMeshDistance
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/TriangleMeshDistance/include)
 
-## fmt
-target_link_libraries(stark PUBLIC fmt::fmt)
-target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/fmt/include)
-
-## Eigen
-target_link_libraries(stark PUBLIC Eigen3::Eigen)
-target_link_libraries(stark PUBLIC MKL::MKL)
+## MKL (optional – only available on x86 with Intel oneAPI)
+find_package(MKL QUIET)
+if(MKL_FOUND)
+	target_link_libraries(stark PUBLIC MKL::MKL)
+	target_compile_definitions(stark PUBLIC STARK_HAS_MKL)
+	message(STATUS "MKL found: MKL_LU and MKL_LDLT solvers enabled")
+else()
+	message(STATUS "MKL not found: MKL_LU and MKL_LDLT solvers disabled")
+endif()
 
 ## par_shapes
 target_include_directories(stark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extern/par_shapes/include)
