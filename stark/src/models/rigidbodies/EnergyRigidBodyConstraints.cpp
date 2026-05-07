@@ -25,8 +25,8 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 	this->angular_velocity = std::make_shared<RigidBodyConstraints::AngularVelocity>();
 
 	// Energy declarations
-	stark.global_energy.add_energy("rb_constraint_global_points", this->global_points->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_global_points", this->global_points->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->global_points;
 
@@ -38,12 +38,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 
 			symx::Vector glob = this->rb->get_x1(energy, conn["rb"], loc, dt);
 			symx::Scalar E = RigidBodyConstraints::GlobalPoints::energy(stiffness, target_glob, glob);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_global_directions", this->global_directions->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_global_directions", this->global_directions->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->global_directions;
 
@@ -55,12 +55,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 
 			symx::Vector d_glob = this->rb->get_d1(energy, conn["rb"], d_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::GlobalDirections::energy(stiffness, target_d_glob, d_glob);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_points", this->points->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_points", this->points->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->points;
 
@@ -73,12 +73,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Vector a1 = this->rb->get_x1(energy, conn["a"], a_loc, dt);
 			symx::Vector b1 = this->rb->get_x1(energy, conn["b"], b_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::Points::energy(stiffness, a1, b1);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_point_on_axis", this->point_on_axes->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_point_on_axis", this->point_on_axes->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->point_on_axes;
 
@@ -92,12 +92,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			auto [a1, da1] = this->rb->get_x1_d1(energy, conn["a"], a_loc, da_loc, dt);
 			symx::Vector b1 = this->rb->get_x1(energy, conn["b"], b_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::PointOnAxes::energy(stiffness, a1, da1, b1);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_distances", this->distances->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_distances", this->distances->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->distances;
 
@@ -111,12 +111,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Vector a1 = this->rb->get_x1(energy, conn["a"], a_loc, dt);
 			symx::Vector b1 = this->rb->get_x1(energy, conn["b"], b_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::Distance::energy(stiffness, a1, b1, target_distance);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_distance_limits", this->distance_limits->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_distance_limits", this->distance_limits->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->distance_limits;
 
@@ -131,12 +131,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Vector a1 = this->rb->get_x1(energy, conn["a"], a_loc, dt);
 			symx::Vector b1 = this->rb->get_x1(energy, conn["b"], b_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::DistanceLimits::energy(stiffness, a1, b1, min_distance, max_distance);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_directions", this->directions->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_directions", this->directions->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->directions;
 
@@ -149,12 +149,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Vector da = this->rb->get_d1(energy, conn["a"], da_loc, dt);
 			symx::Vector db = this->rb->get_d1(energy, conn["b"], db_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::Directions::energy(stiffness, da, db);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_angle_limits", this->angle_limits->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_angle_limits", this->angle_limits->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->angle_limits;
 
@@ -168,12 +168,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Vector da1 = this->rb->get_d1(energy, conn["a"], da_loc, dt);
 			symx::Vector db1 = this->rb->get_d1(energy, conn["b"], db_loc, dt);
 			symx::Scalar E = RigidBodyConstraints::AngleLimits::energy(stiffness, da1, db1, max_distance);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_damped_spring", this->damped_springs->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_damped_spring", this->damped_springs->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->damped_springs;
 
@@ -189,12 +189,12 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			auto [b0, b1] = this->rb->get_x0_x1(energy, conn["b"], b_loc, dt);
 
 			symx::Scalar E = RigidBodyConstraints::DampedSprings::energy(stiffness, damping, a0, a1, b0, b1, rest_length, dt);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_linear_velocity", this->linear_velocity->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_linear_velocity", this->linear_velocity->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->linear_velocity;
 
@@ -203,20 +203,20 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Scalar max_force = energy.make_scalar(data->max_force, conn["idx"]);
 			symx::Scalar delay = energy.make_scalar(data->delay, conn["idx"]);
 			symx::Scalar is_active = energy.make_scalar(data->is_active, conn["idx"]);
-			symx::Vector va1 = energy.make_dof_vector(this->rb->dof_v, this->rb->v1, conn["a"]);
-			symx::Vector vb1 = energy.make_dof_vector(this->rb->dof_v, this->rb->v1, conn["b"]);
-			symx::Vector wa1 = energy.make_dof_vector(this->rb->dof_w, this->rb->w1, conn["a"]);
+			symx::Vector va1 = energy.make_vector(this->rb->v1, conn["a"]);
+			symx::Vector vb1 = energy.make_vector(this->rb->v1, conn["b"]);
+			symx::Vector wa1 = energy.make_vector(this->rb->w1, conn["a"]);
 			symx::Vector qa0 = energy.make_vector(this->rb->q0_, conn["a"]);
 			symx::Scalar dt = energy.make_scalar(stark.dt);
 
 			symx::Vector da1 = integrate_loc_direction(da_loc, qa0, wa1, dt);
 			symx::Scalar E = RigidBodyConstraints::LinearVelocity::energy(da1, va1, vb1, target_v, max_force, delay, dt);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 
-	stark.global_energy.add_energy("rb_constraint_angular_velocity", this->angular_velocity->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("rb_constraint_angular_velocity", this->angular_velocity->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> std::pair<symx::Scalar, symx::Scalar>
 		{
 			auto& data = this->angular_velocity;
 
@@ -225,14 +225,14 @@ stark::EnergyRigidBodyConstraints::EnergyRigidBodyConstraints(stark::core::Stark
 			symx::Scalar max_torque = energy.make_scalar(data->max_torque, conn["idx"]);
 			symx::Scalar delay = energy.make_scalar(data->delay, conn["idx"]);
 			symx::Scalar is_active = energy.make_scalar(data->is_active, conn["idx"]);
-			symx::Vector wa1 = energy.make_dof_vector(this->rb->dof_w, this->rb->w1, conn["a"]);
-			symx::Vector wb1 = energy.make_dof_vector(this->rb->dof_w, this->rb->w1, conn["b"]);
+			symx::Vector wa1 = energy.make_vector(this->rb->w1, conn["a"]);
+			symx::Vector wb1 = energy.make_vector(this->rb->w1, conn["b"]);
 			symx::Vector qa0 = energy.make_vector(this->rb->q0_, conn["a"]);
 			symx::Scalar dt = energy.make_scalar(stark.dt);
 
 			symx::Vector da1 = integrate_loc_direction(da_loc, qa0, wa1, dt);
 			symx::Scalar E = RigidBodyConstraints::AngularVelocity::energy(da1, wa1, wb1, target_w, max_torque, delay, dt);
-			energy.set_with_condition(E, is_active > 0.0);
+			return {E, is_active};
 		}
 	);
 }

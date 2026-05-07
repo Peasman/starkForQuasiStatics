@@ -20,7 +20,7 @@ namespace stark
 		IntervalVector<Eigen::Vector3d> v1;  // Node velocities at time n+1
 		IntervalVector<Eigen::Vector3d> a;   // Node accelerations
 		IntervalVector<Eigen::Vector3d> f;   // Node forces
-		symx::DoF dof;
+		int dof = -1;  // DOF set index in GlobalPotential
 		std::vector<std::string> labels;
 
 		/* Methods */

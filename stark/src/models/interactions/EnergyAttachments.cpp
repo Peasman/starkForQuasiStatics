@@ -13,13 +13,13 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 	stark.callbacks.add_is_converged_state_valid([&]() { return this->_is_converged_state_valid(stark); });
 
 	// Declare the energies
-	stark.global_energy.add_energy("EnergyAttachments_d_d_p_p", this->conn_d_d_p_p,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyAttachments_d_d_p_p", this->conn_d_d_p_p,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			auto nodes = { conn["a"], conn["b"] };
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, nodes);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, nodes);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, nodes);
 			symx::Scalar k = energy.make_scalar(this->stiffness_d_d_p_p, conn["group"]);
 			symx::Scalar dt = energy.make_scalar(stark.dt);
@@ -29,17 +29,17 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 
 			// Energy
 			symx::Scalar E = 0.5 * k * (x1[1] - x1[0]).squared_norm();
-			energy.set(E);
+			return E;
 		}
 	);
 
-	stark.global_energy.add_energy("EnergyAttachments_d_d_p_e", this->conn_d_d_p_e,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyAttachments_d_d_p_e", this->conn_d_d_p_e,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			auto nodes = { conn["p"], conn["e0"], conn["e1"] };
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, nodes);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, nodes);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, nodes);
 			symx::Vector bary = energy.make_vector(this->bary_p_e, conn["idx"]);
 			symx::Scalar k = energy.make_scalar(this->stiffness_d_d_p_e, conn["group"]);
@@ -54,17 +54,17 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 
 			// Energy
 			symx::Scalar E = 0.5 * k * (q - p).squared_norm();
-			energy.set(E);
+			return E;
 		}
 	);
 
-	stark.global_energy.add_energy("EnergyAttachments_d_d_p_t", this->conn_d_d_p_t,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyAttachments_d_d_p_t", this->conn_d_d_p_t,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			auto nodes = { conn["p"], conn["t0"], conn["t1"], conn["t2"] };
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, nodes);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, nodes);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, nodes);
 			symx::Vector bary = energy.make_vector(this->bary_p_t, conn["idx"]);
 			symx::Scalar k = energy.make_scalar(this->stiffness_d_d_p_t, conn["group"]);
@@ -79,17 +79,17 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 
 			// Energy
 			symx::Scalar E = 0.5 * k * (q - p).squared_norm();
-			energy.set(E);
+			return E;
 		}
 	);
 
-	stark.global_energy.add_energy("EnergyAttachments_d_d_e_e", this->conn_d_d_e_e,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyAttachments_d_d_e_e", this->conn_d_d_e_e,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			auto nodes = { conn["ea0"], conn["ea1"], conn["eb0"], conn["eb1"] };
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, nodes);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, nodes);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, nodes);
 			symx::Vector bary_0 = energy.make_vector(this->bary_e_e_0, conn["idx"]);
 			symx::Vector bary_1 = energy.make_vector(this->bary_e_e_1, conn["idx"]);
@@ -105,19 +105,19 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 
 			// Energy
 			symx::Scalar E = 0.5 * k * (q - p).squared_norm();
-			energy.set(E);
+			return E;
 		}
 	);
 
-	stark.global_energy.add_energy("EnergyAttachments_rb_d", this->conn_rb_d,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyAttachments_rb_d", this->conn_rb_d,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Create symbols
 			symx::Scalar k = energy.make_scalar(this->stiffness_rb_d, conn["group"]);
 			symx::Scalar dt = energy.make_scalar(stark.dt);
 
 			//// Deformable
-			symx::Vector v1_d = energy.make_dof_vector(this->dyn->dof, this->dyn->v1.data, conn["p"]);
+			symx::Vector v1_d = energy.make_vector(this->dyn->v1.data, conn["p"]);
 			symx::Vector x0_d = energy.make_vector(this->dyn->x0.data, conn["p"]);
 
 			//// Rigid body
@@ -129,7 +129,7 @@ stark::EnergyAttachments::EnergyAttachments(core::Stark& stark, const spPointDyn
 
 			// Energy
 			symx::Scalar E = 0.5 * k * (x1_d - x1_rb).squared_norm();
-			energy.set(E);
+			return E;
 		}
 	);
 }

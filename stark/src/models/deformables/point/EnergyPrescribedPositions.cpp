@@ -11,11 +11,11 @@ stark::EnergyPrescribedPositions::EnergyPrescribedPositions(core::Stark& stark, 
 	stark.callbacks.add_is_converged_state_valid([&]() { return this->_is_converged_state_valid(stark); });
 
 	// Declare the energy
-	stark.global_energy.add_energy("EnergyPrescribedPositions", this->conn,
-		[&](symx::Energy& energy, symx::Element& node)
+	stark.global_energy.add_potential("EnergyPrescribedPositions", this->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& node) -> symx::Scalar
 		{
 			// Create symbols
-			symx::Vector v1 = energy.make_dof_vector(this->dyn->dof, this->dyn->v1.data, node["point"]);
+			symx::Vector v1 = energy.make_vector(this->dyn->v1.data, node["point"]);
 			symx::Vector x0 = energy.make_vector(this->dyn->x0.data, node["point"]);
 			symx::Vector x1_prescribed = energy.make_vector(this->target_positions, node["idx"]);
 			symx::Scalar k = energy.make_scalar(this->stiffness, node["group"]);
@@ -26,7 +26,7 @@ stark::EnergyPrescribedPositions::EnergyPrescribedPositions(core::Stark& stark, 
 
 			// Energy
 			symx::Scalar E = 0.5 * k * (x1 - x1_prescribed).squared_norm();
-			energy.set(E);
+			return E;
 		}
 	);
 }

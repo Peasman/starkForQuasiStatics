@@ -6,13 +6,13 @@
 stark::EnergySegmentStrain::EnergySegmentStrain(stark::core::Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
-	stark.global_energy.add_energy("EnergySegmentStrain", this->conn_complete,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergySegmentStrain", this->conn_complete,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			std::vector<symx::Index> edge = { conn["i"], conn["j"] };
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, edge);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, edge);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, edge);
 			std::vector<symx::Vector> X = energy.make_vectors(this->dyn->X.data, edge);
 			symx::Scalar scale = energy.make_scalar(this->scale, conn["group"]);
@@ -49,16 +49,16 @@ stark::EnergySegmentStrain::EnergySegmentStrain(stark::core::Stark& stark, spPoi
 
 			// Total
 			symx::Scalar E = E_s + E_sl + E_d;
-			energy.set(E);
+			return E;
 		}
 	);
-	stark.global_energy.add_energy("EnergySegmentStrain_Elasticity_Only", this->conn_elasticity_only,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergySegmentStrain_Elasticity_Only", this->conn_elasticity_only,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			std::vector<symx::Index> edge = { conn["i"], conn["j"] };
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, edge);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, edge);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, edge);
 			std::vector<symx::Vector> X = energy.make_vectors(this->dyn->X.data, edge);
 			symx::Scalar scale = energy.make_scalar(this->scale, conn["group"]);
@@ -82,7 +82,7 @@ stark::EnergySegmentStrain::EnergySegmentStrain(stark::core::Stark& stark, spPoi
 
 			// Total
 			symx::Scalar E = E_s;
-			energy.set(E);
+			return E;
 		}
 	);
 }

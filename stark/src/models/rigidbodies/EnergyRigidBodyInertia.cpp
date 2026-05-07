@@ -8,10 +8,10 @@ stark::EnergyRigidBodyInertia::EnergyRigidBodyInertia(core::Stark& stark, spRigi
 	stark.callbacks.add_before_time_step([&]() { this->_before_time_step(stark); });
 
 	// Linear inertia
-	stark.global_energy.add_energy("EnergyRigidBodyInertia_Linear", this->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyRigidBodyInertia_Linear", this->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
-			symx::Vector v1 = energy.make_dof_vector(this->rb->dof_v, this->rb->v1, conn["rb"]);
+			symx::Vector v1 = energy.make_vector(this->rb->v1, conn["rb"]);
 			symx::Vector v0 = energy.make_vector(this->rb->v0, conn["rb"]);
 			symx::Vector a = energy.make_vector(this->rb->a, conn["rb"]);
 			symx::Vector f = energy.make_vector(this->rb->force, conn["rb"]);
@@ -23,16 +23,15 @@ stark::EnergyRigidBodyInertia::EnergyRigidBodyInertia(core::Stark& stark, spRigi
 			symx::Vector vhat = v0 + dt * (a + gravity + f / m);
 			symx::Vector dev = v1 - vhat;
 			symx::Scalar E = 0.5 * m * dev.dot(dev) + 0.5 * m * v1.dot(v1) * damping * dt;
-			// Actual force: f = -dE/dx = -1/dt*(v1 - vhat)*m
-			energy.set(E);
+			return E;
 		}
 	);
 
 	// Angular inertia
-	stark.global_energy.add_energy("EnergyRigidBodyInertia_Angular", this->conn,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyRigidBodyInertia_Angular", this->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
-			symx::Vector w1 = energy.make_dof_vector(this->rb->dof_w, this->rb->w1, conn["rb"]);
+			symx::Vector w1 = energy.make_vector(this->rb->w1, conn["rb"]);
 			symx::Vector w0 = energy.make_vector(this->rb->w0, conn["rb"]);
 			symx::Vector aa = energy.make_vector(this->rb->aa, conn["rb"]);
 			symx::Vector t = energy.make_vector(this->rb->torque, conn["rb"]);
@@ -44,7 +43,7 @@ stark::EnergyRigidBodyInertia::EnergyRigidBodyInertia(core::Stark& stark, spRigi
 			symx::Vector what = w0 + dt * (aa + J0_inv_glob * t);
 			symx::Vector dev = w1 - what;
 			symx::Scalar E = 0.5 * (dev.dot(J0_glob.dot(dev)) + w1.dot(J0_glob.dot(w1)) * damping * dt);
-			energy.set(E);
+			return E;
 		}
 	);
 

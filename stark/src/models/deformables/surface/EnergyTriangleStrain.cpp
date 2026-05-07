@@ -9,14 +9,14 @@ stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spP
 	: dyn(dyn)
 {
 	// Energies
-	stark.global_energy.add_energy("EnergyTriangleStrain", this->conn_complete,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyTriangleStrain", this->conn_complete,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Unpack connectivity
 			std::vector<symx::Index> triangle = conn.slice(2, 5);
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, triangle);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, triangle);
 			std::vector<symx::Vector> X = energy.make_vectors(this->dyn->X.data, triangle);
 			symx::Scalar scale = energy.make_scalar(this->scale, conn["group"]);
@@ -38,12 +38,12 @@ stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spP
 			// Kinematics
 			symx::Scalar rest_area = 0.5 * ((Xs[0] - Xs[2]).cross3(Xs[1] - Xs[2])).norm();
 			symx::Matrix DXinv = triangle_jacobian(Xs).inv();
-			symx::Matrix Dx1_32 = symx::Matrix(symx::gather({ x1[1] - x1[0], x1[2] - x1[0] }), { 2, 3 }).transpose();
+			symx::Matrix Dx1_32 = symx::Matrix(symx::collect_scalars({ x1[1] - x1[0], x1[2] - x1[0] }), { 2, 3 }).transpose();
 			symx::Matrix F1_32 = Dx1_32 * DXinv;  // 3x2
 			symx::Matrix C1 = F1_32.transpose() * F1_32;
 			symx::Matrix E1 = 0.5 * (C1 - energy.make_identity_matrix(2));
 
-			symx::Matrix Dx0_32 = symx::Matrix(symx::gather({ x0[1] - x0[0], x0[2] - x0[0] }), { 2, 3 }).transpose();
+			symx::Matrix Dx0_32 = symx::Matrix(symx::collect_scalars({ x0[1] - x0[0], x0[2] - x0[0] }), { 2, 3 }).transpose();
 			symx::Matrix F0_32 = Dx0_32 * DXinv;  // 3x2
 			symx::Matrix E0 = 0.5 * (F0_32.transpose() * F0_32 - energy.make_identity_matrix(2));
 
@@ -75,18 +75,18 @@ stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spP
 
 			// Total
 			symx::Scalar Energy = thickness * rest_area * (elastic_energy_density + damping_energy_density + strain_limiting_energy_density + inflation_energy_density);
-			energy.set(Energy);
+			return Energy;
 		}
 	);
 
-	stark.global_energy.add_energy("EnergyTriangleStrain_Elasticity_Only", this->conn_elasticity_only,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyTriangleStrain_Elasticity_Only", this->conn_elasticity_only,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Unpack connectivity
 			std::vector<symx::Index> triangle = conn.slice(2, 5);
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, triangle);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, triangle);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, triangle);
 			std::vector<symx::Vector> X = energy.make_vectors(this->dyn->X.data, triangle);
 			symx::Scalar scale = energy.make_scalar(this->scale, conn["group"]);
@@ -105,7 +105,7 @@ stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spP
 			// Kinematics
 			symx::Scalar rest_area = 0.5 * ((Xs[0] - Xs[2]).cross3(Xs[1] - Xs[2])).norm();
 			symx::Matrix DXinv = triangle_jacobian(Xs).inv();
-			symx::Matrix Dx1_32 = symx::Matrix(symx::gather({ x1[1] - x1[0], x1[2] - x1[0] }), { 2, 3 }).transpose();
+			symx::Matrix Dx1_32 = symx::Matrix(symx::collect_scalars({ x1[1] - x1[0], x1[2] - x1[0] }), { 2, 3 }).transpose();
 			symx::Matrix F1_32 = Dx1_32 * DXinv;  // 3x2
 			symx::Matrix C1 = F1_32.transpose() * F1_32;
 
@@ -124,7 +124,7 @@ stark::EnergyTriangleStrain::EnergyTriangleStrain(stark::core::Stark& stark, spP
 
 			// Total
 			symx::Scalar Energy = thickness * rest_area * (elastic_energy_density + inflation_energy_density);
-			energy.set(Energy);
+			return Energy;
 		}
 	);
 }

@@ -22,14 +22,14 @@ stark::EnergyDiscreteShells::EnergyDiscreteShells(stark::core::Stark& stark, spP
 		};
 
 
-	stark.global_energy.add_energy("EnergyDiscreteShells", this->conn_complete,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyDiscreteShells", this->conn_complete,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Unpack connectivity
 			std::vector<symx::Index> internal_edge = conn.slice(2, 6);
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, internal_edge);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, internal_edge);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, internal_edge);
 			symx::Scalar rest_dihedral_angle = energy.make_scalar(this->rest_dihedral_angle_rad, conn["idx"]);
 			symx::Scalar rest_edge_length = energy.make_scalar(this->rest_edge_length, conn["idx"]);
@@ -58,18 +58,18 @@ stark::EnergyDiscreteShells::EnergyDiscreteShells(stark::core::Stark& stark, spP
 			symx::Scalar Energy_damping = damping * 1.0 / dt * (0.5 * da_1.powN(2) - da_0 * da_1) * (scaled_rest_edge_length / scaled_rest_height);
 
 			// Total energy
-			energy.set(Energy_bending + Energy_damping);
+			return Energy_bending + Energy_damping;
 		}
 	);
 
-	stark.global_energy.add_energy("EnergyDiscreteShells_Elasticity_Only", this->conn_elasticity_only,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyDiscreteShells_Elasticity_Only", this->conn_elasticity_only,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Unpack connectivity
 			std::vector<symx::Index> internal_edge = conn.slice(2, 6);
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, internal_edge);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, internal_edge);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, internal_edge);
 			symx::Scalar rest_dihedral_angle = energy.make_scalar(this->rest_dihedral_angle_rad, conn["idx"]);
 			symx::Scalar rest_edge_length = energy.make_scalar(this->rest_edge_length, conn["idx"]);
@@ -93,7 +93,7 @@ stark::EnergyDiscreteShells::EnergyDiscreteShells(stark::core::Stark& stark, spP
 			symx::Scalar Energy_bending = stiffness * (da_delta * da_delta) * (scaled_rest_edge_length / scaled_rest_height);
 
 			// Total energy
-			energy.set(Energy_bending);
+			return Energy_bending;
 		}
 	);
 }

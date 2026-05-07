@@ -6,8 +6,10 @@
 
 stark::RigidBodyDynamics::RigidBodyDynamics(stark::core::Stark& stark)
 {
-	this->dof_v = stark.global_energy.add_dof_array(this->v1, "rb_v1");
-	this->dof_w = stark.global_energy.add_dof_array(this->w1, "rb_w1");
+	this->dof_v = stark.global_energy.get_n_dof_sets();
+	stark.global_energy.add_dof(this->v1, "rb_v1");
+	this->dof_w = stark.global_energy.get_n_dof_sets();
+	stark.global_energy.add_dof(this->w1, "rb_w1");
 
 	stark.callbacks.add_before_time_step([&]() { this->_before_time_step(stark); });
 	stark.callbacks.add_on_time_step_accepted([&]() { this->_on_time_step_accepted(stark); });
@@ -38,14 +40,14 @@ int stark::RigidBodyDynamics::get_n_bodies() const
 	return (int)this->t0.size();
 }
 
-symx::Vector stark::RigidBodyDynamics::get_x1(symx::Energy& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Scalar& dt)
+symx::Vector stark::RigidBodyDynamics::get_x1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Scalar& dt)
 {
 	return this->get_x1(energy, rb_idx, std::vector<symx::Vector>({ x_loc }), dt)[0];
 }
-std::vector<symx::Vector> stark::RigidBodyDynamics::get_x1(symx::Energy& energy, const symx::Index& rb_idx, const std::vector<symx::Vector>& x_loc, const symx::Scalar& dt)
+std::vector<symx::Vector> stark::RigidBodyDynamics::get_x1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const std::vector<symx::Vector>& x_loc, const symx::Scalar& dt)
 {
-	symx::Vector v1 = energy.make_dof_vector(this->dof_v, this->v1, rb_idx);
-	symx::Vector w1 = energy.make_dof_vector(this->dof_w, this->w1, rb_idx);
+	symx::Vector v1 = energy.make_vector(this->v1, rb_idx);
+	symx::Vector w1 = energy.make_vector(this->w1, rb_idx);
 	symx::Vector t0 = energy.make_vector(this->t0, rb_idx);
 	symx::Vector q0 = energy.make_vector(this->q0_, rb_idx);
 
@@ -58,14 +60,14 @@ std::vector<symx::Vector> stark::RigidBodyDynamics::get_x1(symx::Energy& energy,
 	}
 	return x1;
 }
-symx::Vector stark::RigidBodyDynamics::get_v1(symx::Energy& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Scalar& dt)
+symx::Vector stark::RigidBodyDynamics::get_v1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Scalar& dt)
 {
 	return this->get_v1(energy, rb_idx, std::vector<symx::Vector>({ x_loc }), dt)[0];
 }
-std::vector<symx::Vector> stark::RigidBodyDynamics::get_v1(symx::Energy& energy, const symx::Index& rb_idx, const std::vector<symx::Vector>& x_loc, const symx::Scalar& dt)
+std::vector<symx::Vector> stark::RigidBodyDynamics::get_v1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const std::vector<symx::Vector>& x_loc, const symx::Scalar& dt)
 {
-	symx::Vector v1 = energy.make_dof_vector(this->dof_v, this->v1, rb_idx);
-	symx::Vector w1 = energy.make_dof_vector(this->dof_w, this->w1, rb_idx);
+	symx::Vector v1 = energy.make_vector(this->v1, rb_idx);
+	symx::Vector w1 = energy.make_vector(this->w1, rb_idx);
 	symx::Vector t0 = energy.make_vector(this->t0, rb_idx);
 	symx::Vector q0 = energy.make_vector(this->q0_, rb_idx);
 
@@ -81,16 +83,16 @@ std::vector<symx::Vector> stark::RigidBodyDynamics::get_v1(symx::Energy& energy,
 	}
 	return v1_glob;
 }
-symx::Vector stark::RigidBodyDynamics::get_d1(symx::Energy& energy, const symx::Index& rb_idx, const symx::Vector& d_loc, const symx::Scalar& dt)
+symx::Vector stark::RigidBodyDynamics::get_d1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const symx::Vector& d_loc, const symx::Scalar& dt)
 {
-	symx::Vector w1 = energy.make_dof_vector(this->dof_w, this->w1, rb_idx);
+	symx::Vector w1 = energy.make_vector(this->w1, rb_idx);
 	symx::Vector q0 = energy.make_vector(this->q0_, rb_idx);
 	return integrate_loc_direction(d_loc, q0, w1, dt);
 }
-std::array<symx::Vector, 2> stark::RigidBodyDynamics::get_x1_d1(symx::Energy& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Vector& d_loc, const symx::Scalar& dt)
+std::array<symx::Vector, 2> stark::RigidBodyDynamics::get_x1_d1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Vector& d_loc, const symx::Scalar& dt)
 {
-	symx::Vector v1 = energy.make_dof_vector(this->dof_v, this->v1, rb_idx);
-	symx::Vector w1 = energy.make_dof_vector(this->dof_w, this->w1, rb_idx);
+	symx::Vector v1 = energy.make_vector(this->v1, rb_idx);
+	symx::Vector w1 = energy.make_vector(this->w1, rb_idx);
 	symx::Vector t0 = energy.make_vector(this->t0, rb_idx);
 	symx::Vector q0 = energy.make_vector(this->q0_, rb_idx);
 
@@ -98,10 +100,10 @@ std::array<symx::Vector, 2> stark::RigidBodyDynamics::get_x1_d1(symx::Energy& en
 	symx::Vector d1 = integrate_loc_direction(d_loc, q0, w1, dt);
 	return { x1, d1 };
 }
-std::array<symx::Vector, 2> stark::RigidBodyDynamics::get_x0_x1(symx::Energy& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Scalar& dt)
+std::array<symx::Vector, 2> stark::RigidBodyDynamics::get_x0_x1(symx::MappedWorkspace<double>& energy, const symx::Index& rb_idx, const symx::Vector& x_loc, const symx::Scalar& dt)
 {
-	symx::Vector v1 = energy.make_dof_vector(this->dof_v, this->v1, rb_idx);
-	symx::Vector w1 = energy.make_dof_vector(this->dof_w, this->w1, rb_idx);
+	symx::Vector v1 = energy.make_vector(this->v1, rb_idx);
+	symx::Vector w1 = energy.make_vector(this->w1, rb_idx);
 	symx::Vector t0 = energy.make_vector(this->t0, rb_idx);
 	symx::Vector q0 = energy.make_vector(this->q0_, rb_idx);
 

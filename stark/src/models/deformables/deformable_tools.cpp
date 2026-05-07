@@ -8,18 +8,18 @@ symx::Matrix stark::triangle_jacobian(const std::vector<symx::Vector>& x)
 	symx::Vector u = (x[1] - x[0]).normalized();
 	symx::Vector n = u.cross3(x[2] - x[0]);
 	symx::Vector v = u.cross3(n).normalized();
-	symx::Matrix P = symx::Matrix(symx::gather({ u, v }), { 2, 3 });
+	symx::Matrix P = symx::Matrix(symx::collect_scalars({ u, v }), { 2, 3 });
 
 	// Projection
 	std::vector<symx::Vector> Xp = { P * x[0], P * x[1], P * x[2] };
 
 	// Jacobian linear triangle
-	symx::Matrix DX = symx::Matrix(symx::gather({ Xp[1] - Xp[0], Xp[2] - Xp[0] }), { 2, 2 }).transpose();
+	symx::Matrix DX = symx::Matrix(symx::collect_scalars({ Xp[1] - Xp[0], Xp[2] - Xp[0] }), { 2, 2 }).transpose();
 	return DX;
 }
 symx::Matrix stark::tet_jacobian(const std::vector<symx::Vector>& x)
 {
-	return symx::Matrix(symx::gather({ x[1] - x[0], x[2] - x[0] , x[3] - x[0] }), { 3, 3 }).transpose();
+	return symx::Matrix(symx::collect_scalars({ x[1] - x[0], x[2] - x[0] , x[3] - x[0] }), { 3, 3 }).transpose();
 }
 std::array<symx::Scalar, 2> stark::eigenvalues_sym_2x2(const symx::Matrix& A)
 {

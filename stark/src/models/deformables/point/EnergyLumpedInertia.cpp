@@ -6,13 +6,13 @@ stark::EnergyLumpedInertia::EnergyLumpedInertia(stark::core::Stark& stark, const
 	: dyn(dyn)
 {
 	// Energy definition
-	stark.global_energy.add_energy("EnergyLumpedInertia", this->conn,
-		[&](symx::Energy& energy, symx::Element& node)
+	stark.global_energy.add_potential("EnergyLumpedInertia", this->conn,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& node) -> symx::Scalar
 		{
 			PointDynamics& dyn = *(this->dyn);
 
 			//// Create symbols
-			symx::Vector v1 = energy.make_dof_vector(dyn.dof, dyn.v1.data, node["glob"]);
+			symx::Vector v1 = energy.make_vector(dyn.v1.data, node["glob"]);
 			symx::Vector x0 = energy.make_vector(dyn.x0.data, node["glob"]);
 			symx::Vector v0 = energy.make_vector(dyn.v0.data, node["glob"]);
 			symx::Vector a = energy.make_vector(dyn.a.data, node["glob"]);
@@ -30,7 +30,7 @@ stark::EnergyLumpedInertia::EnergyLumpedInertia(stark::core::Stark& stark, const
 			symx::Vector dev = x1 - xhat;
 			symx::Vector dev2 = x1 - x0;
 			symx::Scalar E = 0.5 * mass * (dev.dot(dev) / (dt.powN(2)) + dev2.dot(dev2) * damping / dt);
-			energy.set(E);
+			return E;
 		}
 	);
 

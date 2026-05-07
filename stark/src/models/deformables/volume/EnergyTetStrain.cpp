@@ -8,14 +8,14 @@
 stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynamics dyn)
 	: dyn(dyn)
 {
-	stark.global_energy.add_energy("EnergyTetStrain", this->conn_complete,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyTetStrain", this->conn_complete,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Unpack connectivity
 			std::vector<symx::Index> tet = conn.slice(2, 6);
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, tet);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, tet);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, tet);
 			std::vector<symx::Vector> X = energy.make_vectors(this->dyn->X.data, tet);
 			symx::Scalar scale = energy.make_scalar(this->scale, conn["group"]);
@@ -40,7 +40,7 @@ stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynami
 			symx::Matrix E1 = 0.5*(F1.transpose() * F1 - energy.make_identity_matrix(3));
 			symx::Scalar tet_rest_volume = DX.det()/6.0;
 
-			symx::Matrix Dx0 = symx::Matrix(symx::gather({ x0[1] - x0[0], x0[2] - x0[0], x0[3] - x0[0] }), { 3, 3 }).transpose();
+			symx::Matrix Dx0 = symx::Matrix(symx::collect_scalars({ x0[1] - x0[0], x0[2] - x0[0], x0[3] - x0[0] }), { 3, 3 }).transpose();
 			symx::Matrix F0 = Dx0 * DXinv;
 			symx::Matrix E0 = 0.5*(F0.transpose() * F0 - energy.make_identity_matrix(3));
 
@@ -70,17 +70,17 @@ stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynami
 
 			// Total
 			symx::Scalar Energy = tet_rest_volume * (elastic_energy_density + damping_energy_density + strain_limiting_energy_density);
-			energy.set(Energy);
+			return Energy;
 		}
 	);
-	stark.global_energy.add_energy("EnergyTetStrain_Elasticity_Only", this->conn_elasticity_only,
-		[&](symx::Energy& energy, symx::Element& conn)
+	stark.global_energy.add_potential("EnergyTetStrain_Elasticity_Only", this->conn_elasticity_only,
+		[&](symx::MappedWorkspace<double>& energy, symx::Element& conn) -> symx::Scalar
 		{
 			// Unpack connectivity
 			std::vector<symx::Index> tet = conn.slice(2, 6);
 
 			// Create symbols
-			std::vector<symx::Vector> v1 = energy.make_dof_vectors(this->dyn->dof, this->dyn->v1.data, tet);
+			std::vector<symx::Vector> v1 = energy.make_vectors(this->dyn->v1.data, tet);
 			std::vector<symx::Vector> x0 = energy.make_vectors(this->dyn->x0.data, tet);
 			std::vector<symx::Vector> X = energy.make_vectors(this->dyn->X.data, tet);
 			symx::Scalar scale = energy.make_scalar(this->scale, conn["group"]);
@@ -95,9 +95,9 @@ stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynami
 			std::vector<symx::Vector> Xs = { scale * X[0], scale * X[1], scale * X[2], scale * X[3] };
 
 			// Kinematics
-			symx::Matrix DX = symx::Matrix(symx::gather({ Xs[1] - Xs[0], Xs[2] - Xs[0] , Xs[3] - Xs[0] }), { 3, 3 }).transpose();
+			symx::Matrix DX = symx::Matrix(symx::collect_scalars({ Xs[1] - Xs[0], Xs[2] - Xs[0] , Xs[3] - Xs[0] }), { 3, 3 }).transpose();
 			symx::Matrix DXinv = DX.inv();
-			symx::Matrix Dx1 = symx::Matrix(symx::gather({ x1[1] - x1[0], x1[2] - x1[0], x1[3] - x1[0] }), { 3, 3 }).transpose();
+			symx::Matrix Dx1 = symx::Matrix(symx::collect_scalars({ x1[1] - x1[0], x1[2] - x1[0], x1[3] - x1[0] }), { 3, 3 }).transpose();
 			symx::Matrix F1 = Dx1 * DXinv;
 			symx::Scalar tet_rest_volume = DX.det() / 6.0; // Specific for linear tet elements
 
@@ -114,7 +114,7 @@ stark::EnergyTetStrain::EnergyTetStrain(stark::core::Stark& stark, spPointDynami
 
 			// Total
 			symx::Scalar Energy = tet_rest_volume * elastic_energy_density;
-			energy.set(Energy);
+			return Energy;
 		}
 	);
 }
