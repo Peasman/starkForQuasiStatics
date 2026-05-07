@@ -1,4 +1,5 @@
 #include "../nanobind_stark_include_all.h"
+#include <symx>
 
 void pystark_Settings(nb::module_& m)
 {
@@ -18,7 +19,7 @@ void pystark_Settings(nb::module_& m)
         .def_rw("tolerance", &stark::Residual::tolerance);
 
     // Functions
-    m.def("set_compiler_command", &set_compiler_command);
+    m.def("set_compiler_command", [](const std::string& path) { symx::set_compiler_path(path); });
 
     // Structs
     auto settings_struct = nb::class_<Settings>(m, "Settings")
